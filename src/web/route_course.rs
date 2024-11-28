@@ -35,7 +35,8 @@ enum ResourceKind {
     FILE,
     URL,
     QUIZ,
-    OTHER
+    OTHER,
+    INVALID
 }
 
 #[derive(Debug, Serialize)]
@@ -50,7 +51,7 @@ impl Resource {
         let output_html ;
         
         if let Some(id) = &self.id {
-            output_html = format!("<p><a href=\"/view?id={}\">{}</a></p>", id, self.data.join(""));
+            output_html = format!("<p><a target=\"_blank\" href=\"/view?id={}\">{}</a></p>", id, self.data.join(""));
             return output_html;
         }
 
@@ -143,7 +144,7 @@ fn extract_resources<'a>(element: impl Selectable<'a>) -> Result<Vec<Resource>, 
         
         let r = match construct_resource(resource) {
             Ok(r) => r,
-            Err(e) => return Err(e)
+            Err(_) => Resource { kind: ResourceKind::INVALID, data: vec!["Invalid resource".into()], id: None }
         };
 
         out.push(r);
@@ -270,12 +271,12 @@ async fn course_get_handler(cookies: Cookies, Query(query): Query<ViewQuery>) ->
     let moodle_session_cookie = moodle_session_id.to_string();
 
     let Some(course_id) = query.id
-    else { return ErrorResponse::BAD_REQUEST("id query param missing".into()).into_json_response(); };
+    else { return ErrorResponse::BAD_REQUEST("id query param missing".into()).into_response(); };
 
 
     let resources = match get_resource_list(moodle_session_cookie, course_id).await {
         Ok(r) => r,
-        Err(r) => return r.into_json_response(),
+        Err(r) => return r.into_response(),
     };
 
     let mut output_html = String::from("<a href=\"/logout\">log out</a><br/><br/>");
