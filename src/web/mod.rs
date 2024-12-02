@@ -1,3 +1,5 @@
+#![allow(non_camel_case_types)]
+
 use axum::{http::{HeaderMap, HeaderValue}, Router};
 use reqwest::header::{ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, CONNECTION, UPGRADE_INSECURE_REQUESTS, USER_AGENT};
 
@@ -5,6 +7,7 @@ mod route_index;
 mod route_login;
 mod route_dashboard;
 mod route_course;
+mod route_resource;
 mod errors;
 
 pub fn routes() -> Router {
@@ -13,6 +16,7 @@ pub fn routes() -> Router {
         .merge(route_login::routes())
         .merge(route_dashboard::routes())
         .merge(route_course::routes())
+        .merge(route_resource::routes())
 }
 
 // "generic" headers mean:

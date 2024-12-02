@@ -21,7 +21,7 @@ pub fn routes() -> Router {
 }
 
 #[derive(Deserialize)]
-struct ViewQuery {
+struct CourseQuery {
     id: Option<String>
 }
 
@@ -51,7 +51,7 @@ impl Resource {
         let output_html ;
         
         if let Some(id) = &self.id {
-            output_html = format!("<p><a target=\"_blank\" href=\"/view?id={}\">{}</a></p>", id, self.data.join(""));
+            output_html = format!("<p><a target=\"_blank\" href=\"/resource?id={}\">{}</a></p>", id, self.data.join(""));
             return output_html;
         }
 
@@ -243,7 +243,7 @@ async fn get_resource_list(moodle_session_cookie: String, course_id: String) -> 
     Ok(out)
 }
 
-async fn api_course_get_handler(headers: HeaderMap, Query(query): Query<ViewQuery>) -> Response {
+async fn api_course_get_handler(headers: HeaderMap, Query(query): Query<CourseQuery>) -> Response {
     let Some(moodle_session_id) = headers.get(AUTHORIZATION)
         else { return ErrorResponse::AUTH_FAILED("Authorization header with moodle session missing".into()).into_json_response(); };
 
@@ -264,7 +264,7 @@ async fn api_course_get_handler(headers: HeaderMap, Query(query): Query<ViewQuer
     })).into_response()
 }
 
-async fn course_get_handler(cookies: Cookies, Query(query): Query<ViewQuery>) -> Response  {
+async fn course_get_handler(cookies: Cookies, Query(query): Query<CourseQuery>) -> Response  {
     let Some(moodle_session_id) = cookies.get("MoodleSession")
         else { return ErrorResponse::AUTH_FAILED("Moodle session cookie missing".into()).into_response(); };
 

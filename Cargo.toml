@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 axum = "0.7.9"
 axum-core = { version = "0.4.5" }
+axum-macros = "0.4.2"
 log = "0.4.22"
 reqwest = { version = "0.12.9", features = ["cookies"] }
 scraper = "0.21.0"
