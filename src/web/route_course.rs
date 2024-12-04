@@ -12,7 +12,7 @@ use tower_cookies::Cookies;
 
 use crate::web::generic_firefox_headers;
 
-use super::errors::{ErrorResponse, IntoJsonResponse};
+use super::errors::ErrorResponse;
 
 pub fn routes() -> Router {
     Router::new()

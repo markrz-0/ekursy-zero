@@ -20,10 +20,6 @@ pub enum ErrorResponse {
     BAD_REQUEST(String)
 }
 
-pub trait IntoJsonResponse {
-    fn into_json_response(self) -> Response;
-}
-
 impl From<ErrorResponse> for ErrorResponseDetails {
     fn from(value: ErrorResponse) -> Self {
         match value {
@@ -67,8 +63,8 @@ impl From<ErrorResponse> for ErrorResponseDetails {
     }
 }
 
-impl IntoJsonResponse for ErrorResponse {
-    fn into_json_response(self) -> Response {
+impl ErrorResponse {
+    pub fn into_json_response(self) -> Response {
         let details = ErrorResponseDetails::from(self);
 
         (

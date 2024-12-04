@@ -8,7 +8,7 @@ use serde_json::json;
 use tokio::io::AsyncReadExt;
 use tower_cookies::Cookies;
 
-use super::{errors::{ErrorResponse, IntoJsonResponse}, generic_firefox_headers, to_safe_html};
+use super::{errors::ErrorResponse, generic_firefox_headers, to_safe_html};
 
 pub fn routes() -> Router {
     Router::new()
