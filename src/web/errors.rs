@@ -4,7 +4,7 @@ use axum::{response::{Html, IntoResponse, Redirect, Response}, Json};
 use reqwest::StatusCode;
 use serde_json::json;
 
-use super::EscapedHtml;
+use super::to_safe_html;
 
 pub struct ErrorResponseDetails {
     status_code: StatusCode,
@@ -20,61 +20,56 @@ pub enum ErrorResponse {
     BAD_REQUEST(String)
 }
 
-pub trait IntoErrorResponseDetails {
-    fn into_error_response_details(&self) -> ErrorResponseDetails;
-}
-
 pub trait IntoJsonResponse {
-    fn into_json_response(&self) -> Response;
+    fn into_json_response(self) -> Response;
 }
 
-impl IntoErrorResponseDetails for ErrorResponse {
-    fn into_error_response_details(&self) -> ErrorResponseDetails {
-        let details: ErrorResponseDetails = match self {
+impl From<ErrorResponse> for ErrorResponseDetails {
+    fn from(value: ErrorResponse) -> Self {
+        match value {
             ErrorResponse::TEMPLATE_FILE_ERROR(msg) => 
                 ErrorResponseDetails { 
                     status_code: StatusCode::NOT_FOUND,
                     error_code: "ERR-000".into(),
-                    msg: msg.to_owned() 
+                    msg
                 },
             ErrorResponse::REMOTE_SERVER_DIDNT_RESPOND(msg) => 
                 ErrorResponseDetails { 
                     status_code: StatusCode::INTERNAL_SERVER_ERROR,
                     error_code: "ERR-001".into(),
-                    msg: msg.to_owned() 
+                    msg
                 },
             ErrorResponse::UNABLE_TO_PARSE_RESPONSE_TEXT(msg) => 
                 ErrorResponseDetails { 
                     status_code: StatusCode::INTERNAL_SERVER_ERROR,
                     error_code: "ERR-002".into(),
-                    msg: msg.to_owned() 
+                    msg
                 },
             ErrorResponse::REMOTE_SERVER_SENT_INVALID_DATA(msg) =>
                 ErrorResponseDetails { 
                     status_code: StatusCode::INTERNAL_SERVER_ERROR,
                     error_code: "ERR-003".into(),
-                    msg: msg.to_owned() 
+                    msg
                 },
             ErrorResponse::AUTH_FAILED(msg) =>
                 ErrorResponseDetails { 
                     status_code: StatusCode::UNAUTHORIZED,
                     error_code: "ERR-004".into(),
-                    msg: msg.to_owned() 
+                    msg
                 },
             ErrorResponse::BAD_REQUEST(msg) =>
                 ErrorResponseDetails { 
                     status_code: StatusCode::BAD_REQUEST,
                     error_code: "ERR-005".into(),
-                    msg: msg.to_owned() 
+                    msg
                 }
-        };
-        return details;
+        }
     }
 }
 
 impl IntoJsonResponse for ErrorResponse {
-    fn into_json_response(&self) -> Response {
-        let details = self.into_error_response_details();
+    fn into_json_response(self) -> Response {
+        let details = ErrorResponseDetails::from(self);
 
         (
             details.status_code,
@@ -88,7 +83,7 @@ impl IntoJsonResponse for ErrorResponse {
 
 impl IntoResponse for ErrorResponse {
     fn into_response(self) -> Response {
-        let details = self.into_error_response_details();
+        let details = ErrorResponseDetails::from(self);
 
         if details.status_code == StatusCode::UNAUTHORIZED {
             return Redirect::to(format!("/?invalid={}", urlencoding::encode(details.msg.as_str())).as_str()).into_response()
@@ -99,8 +94,8 @@ impl IntoResponse for ErrorResponse {
             <a href=\"/\">go back to login</a><br/>
             <p>{}</p> <br /> 
             <p>{}</p>", 
-            details.error_code.into_escaped_html(),
-            details.msg.into_escaped_html()
+            to_safe_html(&details.error_code),
+            to_safe_html(&details.msg)
         );
         
         (details.status_code, Html(html)).into_response()

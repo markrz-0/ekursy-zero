@@ -8,7 +8,7 @@ use serde_json::json;
 use tokio::io::AsyncReadExt;
 use tower_cookies::Cookies;
 
-use super::{errors::{ErrorResponse, IntoJsonResponse}, generic_firefox_headers, EscapedHtml};
+use super::{errors::{ErrorResponse, IntoJsonResponse}, generic_firefox_headers, to_safe_html};
 
 pub fn routes() -> Router {
     Router::new()
@@ -118,7 +118,7 @@ async fn dashboard_get_handler(cookies: Cookies) -> Response {
         output_html += format!(
                 "<a href=\"/course?id={}\">{}</a><br/>",
                 urlencoding::encode(course.id.as_str()),
-                course.name.into_escaped_html()
+                to_safe_html(&course.name)
             ).as_str();
     }
 

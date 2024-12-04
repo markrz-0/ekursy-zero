@@ -40,18 +40,12 @@ pub fn generic_firefox_headers() -> HeaderMap<HeaderValue> {
     return header_map;
 }
 
-pub trait EscapedHtml {
-    fn into_escaped_html(&self) -> String;
-}
-
-impl EscapedHtml for String {
-    fn into_escaped_html(&self) -> String {
-        self
-            .replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace("\"", "&quot;")
-            .replace("\'", "&#x27;")
-            .replace("/", "&#x2F;")
-    }
+pub fn to_safe_html(s: &str) -> String {
+    s
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("\'", "&#x27;")
+        .replace("/", "&#x2F;")
 }
