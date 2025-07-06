@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum = "0.7.9"
+axum = { version = "0.7.9", features = ["macros"]}
 axum-core = { version = "0.4.5" }
 axum-macros = "0.4.2"
 log = "0.4.22"
-reqwest = { version = "0.12.9", features = ["cookies"] }
+reqwest = { version = "0.12.9", features = ["cookies", "json"] }
 scraper = "0.21.0"
 serde = { version = "1.0.215",  features = ["derive"] }
 serde_json = "1.0.133"
