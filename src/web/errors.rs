@@ -12,7 +12,6 @@ pub struct ErrorResponseDetails {
     msg: String
 }
 pub enum ErrorResponse {
-    TEMPLATE_FILE_ERROR(String),
     REMOTE_SERVER_DIDNT_RESPOND(String),
     UNABLE_TO_PARSE_RESPONSE_TEXT(String),
     REMOTE_SERVER_SENT_INVALID_DATA(String),
@@ -23,12 +22,6 @@ pub enum ErrorResponse {
 impl From<ErrorResponse> for ErrorResponseDetails {
     fn from(value: ErrorResponse) -> Self {
         match value {
-            ErrorResponse::TEMPLATE_FILE_ERROR(msg) => 
-                ErrorResponseDetails { 
-                    status_code: StatusCode::NOT_FOUND,
-                    error_code: "ERR-000".into(),
-                    msg
-                },
             ErrorResponse::REMOTE_SERVER_DIDNT_RESPOND(msg) => 
                 ErrorResponseDetails { 
                     status_code: StatusCode::INTERNAL_SERVER_ERROR,

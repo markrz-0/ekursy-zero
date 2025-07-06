@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use axum::{http::HeaderValue, response::{IntoResponse, Redirect, Response}, routing::post, Form, Json, Router};
-use reqwest::{cookie::{CookieStore, Jar}, header::{self, HOST, ORIGIN, REFERER}, Client, Url};
+use axum::{http::HeaderValue, response::{IntoResponse, Response}, routing::post, Json, Router};
+use reqwest::{cookie::{CookieStore, Jar}, header::{HOST, ORIGIN, REFERER}, Client, Url};
 use scraper::Selector;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -10,7 +10,6 @@ use super::{errors::ErrorResponse, generic_firefox_headers};
 
 pub fn routes() -> Router {
     Router::new()   
-        .route("/login", post(login_post_handler).get(login_get_handler))
         .route("/api/login", post(api_login_post_handler))
 }
 
@@ -224,21 +223,4 @@ async fn api_login_post_handler(Json(login): Json<SignIn>) -> Response {
         "msg": "OK",
         "moodleSessionKey": moodle_session_key
     })).into_response()
-}
-
-async fn login_post_handler(Form(form): Form<SignIn>) -> Response {
-
-    let moodle_session_key = match get_moodle_session_key(form).await {
-        Ok(k) => k,
-        Err(r) => return r.into_response(),
-    };
-
-    let headers = [
-        (header::SET_COOKIE, moodle_session_key.to_owned() + "; path=/; HttpOnly")
-    ];
-    (headers, Redirect::to("/dashboard")).into_response()
-}
-
-async fn login_get_handler() -> impl IntoResponse {
-    Redirect::to("/")
 }

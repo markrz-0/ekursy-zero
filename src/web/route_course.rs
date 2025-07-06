@@ -2,13 +2,11 @@
 
 use std::sync::Arc;
 
-use axum::{extract::Query, http::{HeaderMap, HeaderValue}, response::{Html, IntoResponse, Response}, routing::get, Json, Router};
+use axum::{extract::Query, http::{HeaderMap, HeaderValue}, response::{IntoResponse, Response}, routing::get, Json, Router};
 use reqwest::{cookie::Jar, header::{AUTHORIZATION, HOST}, Client, Url};
 use scraper::{selectable::Selectable, ElementRef, Selector};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tokio::io::AsyncReadExt;
-use tower_cookies::Cookies;
 
 use crate::web::generic_firefox_headers;
 
@@ -16,7 +14,6 @@ use super::errors::ErrorResponse;
 
 pub fn routes() -> Router {
     Router::new()
-        .route("/course", get(course_get_handler))
         .route("/api/course", get(api_course_get_handler))
 }
 
@@ -45,27 +42,6 @@ struct Resource {
     data: Vec<String>,
     id: Option<String>
 }
-
-impl Resource {
-    fn into_html_string(&self) -> String {
-        let output_html ;
-        
-        if let Some(id) = &self.id {
-            output_html = format!("<p><a target=\"_blank\" href=\"/resource?id={}\">{}</a></p>", id, self.data.join(""));
-            return output_html;
-        }
-
-        output_html = match self.kind {
-            ResourceKind::TITLE => format!("<h1>{}</h1>", self.data.join("")),
-            ResourceKind::CARD_TITLE => format!("<h2>{}</h2>", self.data.join("")),
-            ResourceKind::DESCRIPTION | ResourceKind::RESOURCE_DESCRIPTION => format!("<p>{}</p>", self.data.join("<br/>")),
-            _ => format!("<p>{}</p>", self.data.join(""))
-        };
-
-        output_html
-    }
-}
-
 
 fn get_text<'a>(document: impl scraper::selectable::Selectable<'a>, selector: &Selector) -> Result<Vec<String>, ()>{
     let Some(element) = document.select(&selector).next()
@@ -262,37 +238,4 @@ async fn api_course_get_handler(headers: HeaderMap, Query(query): Query<CourseQu
         "msg": "OK",
         "resources": resources
     })).into_response()
-}
-
-async fn course_get_handler(cookies: Cookies, Query(query): Query<CourseQuery>) -> Response  {
-    let Some(moodle_session_id) = cookies.get("MoodleSession")
-        else { return ErrorResponse::AUTH_FAILED("Moodle session cookie missing".into()).into_response(); };
-
-    let moodle_session_cookie = moodle_session_id.to_string();
-
-    let Some(course_id) = query.id
-    else { return ErrorResponse::BAD_REQUEST("id query param missing".into()).into_response(); };
-
-
-    let resources = match get_resource_list(moodle_session_cookie, course_id).await {
-        Ok(r) => r,
-        Err(r) => return r.into_response(),
-    };
-
-    let mut output_html = String::from("<a href=\"/logout\">log out</a><br/><br/>");
-    for resource in resources {
-        output_html += resource.into_html_string().as_str();
-    }
-
-    let mut file = match tokio::fs::File::open("templates/content.html").await {
-        Ok(file) => file,
-        Err(err) => return ErrorResponse::TEMPLATE_FILE_ERROR(err.to_string()).into_response(),
-    };
-
-    let mut text = String::new();
-    if let Err(e) = file.read_to_string(&mut text).await {
-        return ErrorResponse::TEMPLATE_FILE_ERROR(e.to_string()).into_response()
-    }
-
-    Html(text.replace("{% CONTENT %}", output_html.as_str())).into_response()
 }

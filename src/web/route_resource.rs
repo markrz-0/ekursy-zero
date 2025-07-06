@@ -10,7 +10,7 @@ use crate::web::{errors::ErrorResponse, generic_firefox_headers};
 
 pub fn routes() -> Router {
     Router::new()
-        .route("/resource", get(resource_handler))
+        .route("/api/resource", get(resource_handler))
 }
 
 

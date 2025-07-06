@@ -3,18 +3,16 @@
 use axum::{http::{HeaderMap, HeaderValue}, Router};
 use reqwest::header::{ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, CONNECTION, UPGRADE_INSECURE_REQUESTS, USER_AGENT};
 
-mod route_index;
 mod route_login;
-mod route_dashboard;
+mod route_course_list;
 mod route_course;
 mod route_resource;
 mod errors;
 
 pub fn routes() -> Router {
     Router::new()
-        .merge(route_index::routes())
         .merge(route_login::routes())
-        .merge(route_dashboard::routes())
+        .merge(route_course_list::routes())
         .merge(route_course::routes())
         .merge(route_resource::routes())
 }
