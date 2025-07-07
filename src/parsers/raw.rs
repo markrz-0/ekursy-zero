@@ -8,10 +8,10 @@ pub struct RawParser;
 
 impl Parser for RawParser {
     fn parse(&self, html_string: String) -> Response {
-        let document = scraper::Html::parse_document(html_string.as_str());
-        let Some(content) = document.select(&Selector::parse("div.course-content").unwrap()).next()
+        let document: scraper::Html = scraper::Html::parse_document(html_string.as_str());
+        let Some(_) = document.select(&Selector::parse("div.course-content").unwrap()).next()
             else { return ErrorResponse::AUTH_FAILED("Session expired".into()).into_json_response() };
 
-        prepare_parser_response(NAME.into(), content.html())
+        prepare_parser_response(NAME.into(), html_string)
     }
 }
