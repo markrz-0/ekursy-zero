@@ -1,16 +1,16 @@
-#![allow(non_camel_case_types)]
-
 use axum::{response::{Html, IntoResponse, Redirect, Response}, Json};
 use reqwest::StatusCode;
 use serde_json::json;
 
-use super::to_safe_html;
+use crate::util::to_safe_html;
 
 pub struct ErrorResponseDetails {
     status_code: StatusCode,
     error_code: String,
     msg: String
 }
+
+#[allow(non_camel_case_types)]
 pub enum ErrorResponse {
     REMOTE_SERVER_DIDNT_RESPOND(String),
     UNABLE_TO_PARSE_RESPONSE_TEXT(String),

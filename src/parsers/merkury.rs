@@ -1,27 +1,15 @@
-#![allow(non_camel_case_types)]
+use crate::{errors::ErrorResponse, parsers::{prepare_parser_response, Parser}};
 
-use std::sync::Arc;
-
-use axum::{extract::Query, http::{HeaderMap, HeaderValue}, response::{IntoResponse, Response}, routing::get, Json, Router};
-use reqwest::{cookie::Jar, header::{AUTHORIZATION, HOST}, Client, Url};
+use axum::response::Response;
 use scraper::{selectable::Selectable, ElementRef, Selector};
-use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde::{Serialize};
 
-use crate::web::generic_firefox_headers;
 
-use super::errors::ErrorResponse;
+pub const NAME: &'static str = "merkury";
 
-pub fn routes() -> Router {
-    Router::new()
-        .route("/api/course", get(api_course_get_handler))
-}
+pub struct MerkuryParser;
 
-#[derive(Deserialize)]
-struct CourseQuery {
-    id: Option<String>
-}
-
+#[allow(non_camel_case_types)]
 #[derive(Debug, Serialize)]
 enum ResourceKind {
     TITLE,
@@ -129,35 +117,8 @@ fn extract_resources<'a>(element: impl Selectable<'a>) -> Result<Vec<Resource>, 
     Ok(out)
 }
 
-// moodle_session_cookie string in a format MoodleSession=XXXXX
-async fn get_resource_list(moodle_session_cookie: String, course_id: String) -> Result<Vec<Resource>, ErrorResponse> {
-    let jar: Arc<Jar> = Jar::default().into();
-
-    jar.add_cookie_str(&moodle_session_cookie, &"https://ekursy.put.poznan.pl".parse::<Url>().unwrap());
-
-    let client = Client::builder()
-        .cookie_provider(jar)
-        .default_headers(generic_firefox_headers())
-        .build()
-        .unwrap();
-
-    let url = format!("https://ekursy.put.poznan.pl/course/view.php?id={}", course_id);
-
-    let Ok(resp) = client
-        .get(&url)
-        .header(HOST, HeaderValue::from_static("ekursy.put.poznan.pl"))
-        .send()
-        .await
-        else { return Err(ErrorResponse::REMOTE_SERVER_DIDNT_RESPOND("ekursy course".into())) };
-    
-    if ! resp.url().to_string().starts_with(url.as_str()) {
-        return Err(ErrorResponse::AUTH_FAILED("Session expired".into()))
-    }
-    
-    let Ok(text) = resp.text().await
-        else { return Err(ErrorResponse::REMOTE_SERVER_SENT_INVALID_DATA("ekursy course response couldnt be parsed".into())) };
-
-    let document = scraper::Html::parse_document(text.as_str());
+fn try_parse(html_string: String) -> Result<Vec<Resource>, ErrorResponse> {
+    let document = scraper::Html::parse_document(html_string.as_str());
 
     let mut out = vec![];
 
@@ -219,23 +180,16 @@ async fn get_resource_list(moodle_session_cookie: String, course_id: String) -> 
     Ok(out)
 }
 
-async fn api_course_get_handler(headers: HeaderMap, Query(query): Query<CourseQuery>) -> Response {
-    let Some(moodle_session_id) = headers.get(AUTHORIZATION)
-        else { return ErrorResponse::AUTH_FAILED("Authorization header with moodle session missing".into()).into_json_response(); };
+impl Parser for MerkuryParser {
+    fn parse(&self, html_string: String) -> Response {
 
-    let moodle_session_cookie = String::from("MoodleSession=") + moodle_session_id.to_str().unwrap();
-
-    let Some(course_id) = query.id
-        else { return ErrorResponse::BAD_REQUEST("id query param missing".into()).into_json_response(); };
-    
-
-    let resources = match get_resource_list(moodle_session_cookie, course_id).await {
-        Ok(r) => r,
-        Err(r) => return r.into_json_response(),
-    };
-
-    Json(json!({
-        "msg": "OK",
-        "resources": resources
-    })).into_response()
+        match try_parse(html_string) {
+            Ok(result) => {
+                return prepare_parser_response(NAME.into(), result)
+            },
+            Err(err) => {
+                return err.into_json_response()
+            }
+        }
+    }
 }

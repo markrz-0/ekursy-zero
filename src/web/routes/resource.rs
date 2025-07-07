@@ -6,7 +6,7 @@ use scraper::Selector;
 use serde::Deserialize;
 use tower_cookies::Cookies;
 
-use crate::web::{errors::ErrorResponse, generic_firefox_headers};
+use crate::{errors::ErrorResponse, util::generic_firefox_headers};
 
 pub fn routes() -> Router {
     Router::new()

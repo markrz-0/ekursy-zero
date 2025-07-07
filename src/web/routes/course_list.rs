@@ -5,7 +5,7 @@ use reqwest::{cookie::Jar, header::{AUTHORIZATION, HOST}, Client, Url};
 use scraper::Selector;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use super::{errors::ErrorResponse, generic_firefox_headers};
+use crate::{errors::ErrorResponse, util::generic_firefox_headers};
 
 pub fn routes() -> Router {
     Router::new()
