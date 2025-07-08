@@ -10,13 +10,17 @@ pub const NAME: &'static str = "mercury";
 pub struct MercuryParser;
 
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 enum PageFragment {
     Text{ text: String },
+    #[serde(rename = "text")]
+    OrphanText{ text: String },
+    Caption{ text: String },
     Link{ text: String, link: String },
     Iframe { src: String },
-    Resource{ text: String, id: String, kind: String }
+    Resource{ text: String, id: String, kind: String },
+    SectionSeparator
 }
 
 fn parse_a_tag(a_tag: ElementRef) -> Option<PageFragment> {
@@ -65,7 +69,7 @@ fn try_explore_children(root: ElementRef)  -> Result<Vec<PageFragment>, ErrorRes
             let text = child.value().as_text().unwrap().to_string();
             let trimmed = text.trim();
             if trimmed.len() > 0 {
-                out.push(PageFragment::Text { text: trimmed.into() });
+                out.push(PageFragment::OrphanText { text: trimmed.into() });
             }
         }
     }
@@ -89,6 +93,12 @@ fn try_parse_html_tree(root: ElementRef) -> Result<Vec<PageFragment>, ErrorRespo
         return Ok(out);
     }
 
+    if root.value().has_class("section", scraper::CaseSensitivity::AsciiCaseInsensitive) && 
+        root.value().has_class("main", scraper::CaseSensitivity::AsciiCaseInsensitive
+        ) {
+        out.push(PageFragment::SectionSeparator);
+    }
+
     match root.value().name().to_lowercase().as_str() {
         "style" => (), // WHY TF WAS STYLE INSIDE A BODY TREE WTF
         "p" => { 
@@ -109,7 +119,7 @@ fn try_parse_html_tree(root: ElementRef) -> Result<Vec<PageFragment>, ErrorRespo
             }
         },
         "span" | "li" => {
-            if let Some(_) = root.select(&Selector::parse("div, p, a").unwrap()).next() {
+            if let Some(_) = root.select(&Selector::parse("div, p, a, ul").unwrap()).next() {
                 match try_explore_children(root) {
                     Ok(res) => out.extend(res),
                     Err(err) => return Err(err)
@@ -119,6 +129,20 @@ fn try_parse_html_tree(root: ElementRef) -> Result<Vec<PageFragment>, ErrorRespo
                     Some(text) => out.push(PageFragment::Text{ text: text }),
                     None => ()
                 }
+            }
+        },
+        "h1" | "h2" | "h3" | "h4" => {
+            match try_explore_children(root) {
+                Ok(res) => {
+                    let capital_res = res.iter().map(|fragment| {
+                        match fragment {
+                            PageFragment::Text { text } => PageFragment::Caption { text: text.clone() },
+                            _ => fragment.clone()
+                        }
+                    }).collect::<Vec<_>>();
+                    out.extend(capital_res);
+                },
+                Err(err) => return Err(err)
             }
         },
         _ => {
@@ -131,19 +155,51 @@ fn try_parse_html_tree(root: ElementRef) -> Result<Vec<PageFragment>, ErrorRespo
     Ok(out)
 }
 
-fn try_parse(html_string: String) -> Result<Vec<PageFragment>, ErrorResponse> {
-    let document = scraper::Html::parse_document(html_string.as_str());
+fn merge_orphans(dirty: Vec<PageFragment>) -> Vec<PageFragment> {
+    let mut out = vec![];
+
+    for fragment in dirty.iter() {
+        match fragment {
+            PageFragment::OrphanText { text } => {
+                let new_text = text;
+                if let Some(last) = out.iter_mut().last() {
+                    match last {
+                        PageFragment::OrphanText { text } => {*text += " "; *text += new_text},
+                        _ => out.push(fragment.clone())
+                    }
+                } else {
+                    out.push(fragment.clone());
+                }
+            }
+            _ => {
+                out.push(fragment.clone());
+            }
+        }
+    }
+
+    out
+}
+
+fn try_parse(html_string: String, course_id: String) -> Result<Vec<PageFragment>, ErrorResponse> {
+
+    let full_course_url = format!("https://ekursy.put.poznan.pl/course/view.php?id={}", course_id);
+
+    let document = scraper::Html::parse_document(
+        html_string.replace(full_course_url.as_str(),"").as_str()
+    );
 
     let Some(content) = document.select(&Selector::parse("div.course-content").unwrap()).next()
         else { return Err(ErrorResponse::AUTH_FAILED("Session expired".into())) };
 
-    try_parse_html_tree(content)
+    let out = try_parse_html_tree(content)?;
+
+    Ok(merge_orphans(out))
 }
 
 impl Parser for MercuryParser {
-    fn parse(&self, html_string: String) -> Response {
+    fn parse(&self, html_string: String, course_id: String) -> Response {
 
-        match try_parse(html_string) {
+        match try_parse(html_string, course_id) {
             Ok(result) => {
                 return prepare_parser_response(NAME.into(), result)
             },

@@ -73,10 +73,10 @@ async fn api_course_get_handler(headers: HeaderMap, Query(query): Query<CourseQu
         else { return ErrorResponse::BAD_REQUEST("id query param missing".into()).into_json_response(); };
     
 
-    let html = match get_course_html(moodle_session_cookie, course_id).await {
+    let html = match get_course_html(moodle_session_cookie, course_id.clone()).await {
         Ok(h) => h,
         Err(r) => return r.into_json_response(),
     };
 
-    available_parsers()[parser_name.as_str()].as_ref().parse(html)
+    available_parsers()[parser_name.as_str()].as_ref().parse(html, course_id)
 }

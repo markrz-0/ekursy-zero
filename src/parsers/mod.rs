@@ -9,7 +9,7 @@ pub mod raw;
 pub mod mercury;
 
 pub trait Parser {
-    fn parse(&self, html_string: String) -> Response;
+    fn parse(&self, html_string: String, course_id: String) -> Response;
 }
 
 pub fn prepare_parser_response(name: String, result: impl Serialize) -> Response {
