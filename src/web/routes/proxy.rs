@@ -14,7 +14,7 @@ pub fn routes() -> Router {
 
 #[derive(Debug, Deserialize)]
 struct ProxyQuery {
-    pub path: Option<String>
+    path: Option<String>
 }
 
 
