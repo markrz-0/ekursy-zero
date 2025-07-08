@@ -22,19 +22,12 @@ struct ResourceQuery {
 async fn extract_resource(req_url: &str, resp: reqwest::Response, client: &Client) -> Result<Response, ErrorResponse> {
     // external file redirect
     if req_url != resp.url().to_string() {
-        let Some(content_type_borrowed) = resp.headers().get(CONTENT_TYPE)
-            else { return Err(ErrorResponse::REMOTE_SERVER_SENT_INVALID_DATA("No Content-Type header".into())) };
-        let content_type = content_type_borrowed.to_owned();
+        let headers = resp.headers().clone();
 
         let Ok(bytes) = resp.bytes().await
             else { return Err(ErrorResponse::UNABLE_TO_PARSE_RESPONSE_TEXT("Bytes not recieved from remote WTF?".into())) };
-        
 
-        let headers = [
-            (CONTENT_TYPE, content_type)
-        ];
-
-        return Ok((headers, bytes).into_response())
+        return Ok((headers.clone(), bytes).into_response())
     }
 
     let Ok(text) = resp.text().await
