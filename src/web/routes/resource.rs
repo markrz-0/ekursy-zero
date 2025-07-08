@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
-use axum::{extract::Query, http::HeaderValue, response::{IntoResponse, Redirect, Response}, routing::get, Router};
-use reqwest::{cookie::Jar, header::{CONTENT_TYPE, HOST}, Client, Url};
+use axum::{extract::Query, http::{HeaderMap, HeaderValue}, response::{IntoResponse, Redirect, Response}, routing::get, Router};
+use reqwest::{cookie::Jar, header::{AUTHORIZATION, CONTENT_TYPE, HOST}, Client, Url};
 use scraper::Selector;
 use serde::Deserialize;
-use tower_cookies::Cookies;
 
 use crate::{errors::ErrorResponse, util::generic_firefox_headers};
 
@@ -16,7 +15,8 @@ pub fn routes() -> Router {
 
 #[derive(Debug, Deserialize)]
 struct ResourceQuery {
-    id: Option<String>
+    id: Option<String>,
+    kind: Option<String>
 }
 
 async fn extract_resource(req_url: &str, resp: reqwest::Response, client: &Client) -> Result<Response, ErrorResponse> {
@@ -106,7 +106,7 @@ async fn extract_url(resp: reqwest::Response) -> Result<Response, ErrorResponse>
 }
 
 // moodle_session_cookie string in a format MoodleSession=XXXXX
-async fn fetch_resource(moodle_session_cookie: String, resource_id: String) -> Result<Response, ErrorResponse> {
+async fn fetch_resource(moodle_session_cookie: String, resource_id: String, resource_kind: String) -> Result<Response, ErrorResponse> {
     let jar: Arc<Jar> = Jar::default().into();
 
     jar.add_cookie_str(&moodle_session_cookie, &"https://ekursy.put.poznan.pl".parse::<Url>().unwrap());
@@ -117,12 +117,7 @@ async fn fetch_resource(moodle_session_cookie: String, resource_id: String) -> R
         .build()
         .unwrap();
 
-
-    let url = format!("https://ekursy.put.poznan.pl/mod/{}",  resource_id.replace("$", "/view.php?"));
-
-    
-    let Some(resource_kind) = resource_id.split("$").next()
-        else { return Err(ErrorResponse::REMOTE_SERVER_DIDNT_RESPOND("invalid resource id".into())) };
+    let url = format!("https://ekursy.put.poznan.pl/mod/{}/view.php?id={}", resource_kind, resource_id);
 
     let Ok(resp) = client
         .get(&url)
@@ -135,25 +130,27 @@ async fn fetch_resource(moodle_session_cookie: String, resource_id: String) -> R
         return Err(ErrorResponse::AUTH_FAILED("Session expired".into()))
     }
 
-    match resource_kind {
+    match resource_kind.as_str() {
         "resource" => return extract_resource(&url, resp, &client).await,
         "url" => return extract_url(resp).await,
         _ => return Err(ErrorResponse::UNABLE_TO_PARSE_RESPONSE_TEXT("Unknown resource type".into()))
     } 
 }
 
-async fn resource_handler(cookies: Cookies, Query(query): Query<ResourceQuery>) -> Response {
-    let Some(moodle_session_id) = cookies.get("MoodleSession")
-        else { return ErrorResponse::AUTH_FAILED("Moodle session cookie missing".into()).into_response(); };
+async fn resource_handler(headers: HeaderMap, Query(query): Query<ResourceQuery>) -> Response {
+    let Some(moodle_session_id) = headers.get(AUTHORIZATION)
+        else { return ErrorResponse::AUTH_FAILED("Authorization header with moodle session missing".into()).into_json_response(); };
 
-    let moodle_session_cookie = moodle_session_id.to_string();
+    let moodle_session_cookie = String::from("MoodleSession=") + moodle_session_id.to_str().unwrap();
 
     let Some(resource_id) = query.id
-        else { return ErrorResponse::BAD_REQUEST("id query param missing".into()).into_response(); };
+        else { return ErrorResponse::BAD_REQUEST("id query param missing".into()).into_json_response(); };
 
+    let Some(resource_kind) = query.kind
+        else { return ErrorResponse::BAD_REQUEST("kind query param missing".into()).into_json_response(); };
 
-    match fetch_resource(moodle_session_cookie, resource_id).await {
+    match fetch_resource(moodle_session_cookie, resource_id, resource_kind).await {
         Ok(r) => return r,
-        Err(e ) => return e.into_response()
+        Err(e ) => return e.into_json_response()
     }
 }
