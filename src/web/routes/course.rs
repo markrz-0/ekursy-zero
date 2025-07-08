@@ -57,7 +57,7 @@ async fn api_course_get_handler(headers: HeaderMap, Query(query): Query<CourseQu
 
     let parser_name = match query.parser {
         Some(p) => p,
-        None => parsers::raw::NAME.into()
+        None => parsers::mercury::NAME.into()
     };
 
     if available_parsers().keys().find(|&&x| x == parser_name).is_none() {

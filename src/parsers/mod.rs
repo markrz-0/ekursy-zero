@@ -6,7 +6,7 @@ use serde_json::json;
 use once_cell::sync::Lazy;
 
 pub mod raw;
-pub mod merkury;
+pub mod mercury;
 
 pub trait Parser {
     fn parse(&self, html_string: String) -> Response;
@@ -23,7 +23,7 @@ pub fn prepare_parser_response(name: String, result: impl Serialize) -> Response
 static AVAILABLE_PARSERS: Lazy<HashMap<&'static str, Box<dyn Parser + Sync + Send>>> = Lazy::new(|| {
     let mut parsers: HashMap<&'static str, Box<dyn Parser + Sync + Send>> = HashMap::new();
     parsers.insert(raw::NAME, Box::new(raw::RawParser));
-    parsers.insert(merkury::NAME, Box::new(merkury::MerkuryParser));
+    parsers.insert(mercury::NAME, Box::new(mercury::MercuryParser));
     parsers
 });
 

@@ -5,9 +5,9 @@ use scraper::{selectable::Selectable, ElementRef, Selector};
 use serde::{Serialize};
 
 
-pub const NAME: &'static str = "merkury";
+pub const NAME: &'static str = "mercury";
 
-pub struct MerkuryParser;
+pub struct MercuryParser;
 
 
 #[derive(Debug, Serialize)]
@@ -112,7 +112,7 @@ fn try_parse(html_string: String) -> Result<Vec<Resource>, ErrorResponse> {
     try_parse_html_tree(content)
 }
 
-impl Parser for MerkuryParser {
+impl Parser for MercuryParser {
     fn parse(&self, html_string: String) -> Response {
 
         match try_parse(html_string) {
