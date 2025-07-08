@@ -1,8 +1,6 @@
-use axum::{response::{Html, IntoResponse, Redirect, Response}, Json};
+use axum::{response::{IntoResponse, Response}, Json};
 use reqwest::StatusCode;
 use serde_json::json;
-
-use crate::util::to_safe_html;
 
 pub struct ErrorResponseDetails {
     status_code: StatusCode,
@@ -69,25 +67,3 @@ impl ErrorResponse {
         ).into_response()
     }
 }
-
-impl IntoResponse for ErrorResponse {
-    fn into_response(self) -> Response {
-        let details = ErrorResponseDetails::from(self);
-
-        if details.status_code == StatusCode::UNAUTHORIZED {
-            return Redirect::to(format!("/?invalid={}", urlencoding::encode(details.msg.as_str())).as_str()).into_response()
-        }
-
-        let html = format!("
-            <h1>Error</h1><br/>
-            <a href=\"/\">go back to login</a><br/>
-            <p>{}</p> <br /> 
-            <p>{}</p>", 
-            to_safe_html(&details.error_code),
-            to_safe_html(&details.msg)
-        );
-        
-        (details.status_code, Html(html)).into_response()
-    }
-}
-

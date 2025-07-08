@@ -1,16 +1,6 @@
 use axum::http::{HeaderMap, HeaderValue};
 use reqwest::header::{ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, CONNECTION, UPGRADE_INSECURE_REQUESTS, USER_AGENT};
 
-pub fn to_safe_html(s: &str) -> String {
-    s
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace("\"", "&quot;")
-        .replace("\'", "&#x27;")
-        .replace("/", "&#x2F;")
-}
-
 // "generic" headers mean:
 // User-Agent, Accept, Accept-Language, Accept-Encoding, Connection, Upgrade-Insecure-Requests,  Sec-Fetch-Dest,  Sec-Fetch-Mode, Sec-Fetch-Site, Sec-Fetch-User, Priority
 // not implemented page specific important headers: Host, Referer, Origin
