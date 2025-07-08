@@ -5,7 +5,6 @@ use serde::Serialize;
 use serde_json::json;
 use once_cell::sync::Lazy;
 
-pub mod raw;
 pub mod mercury;
 
 pub trait Parser {
@@ -22,7 +21,6 @@ pub fn prepare_parser_response(name: String, result: impl Serialize) -> Response
 
 static AVAILABLE_PARSERS: Lazy<HashMap<&'static str, Box<dyn Parser + Sync + Send>>> = Lazy::new(|| {
     let mut parsers: HashMap<&'static str, Box<dyn Parser + Sync + Send>> = HashMap::new();
-    parsers.insert(raw::NAME, Box::new(raw::RawParser));
     parsers.insert(mercury::NAME, Box::new(mercury::MercuryParser));
     parsers
 });

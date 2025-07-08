@@ -18,6 +18,7 @@ enum PageFragment {
     OrphanText{ text: String },
     Caption{ text: String },
     Link{ text: String, link: String },
+    Proxy{ text: String, link: String },
     Iframe { src: String },
     Resource{ text: String, id: String, kind: String },
     SectionSeparator
@@ -33,6 +34,11 @@ fn parse_a_tag(a_tag: ElementRef) -> Option<PageFragment> {
     }
 
     if ! href.starts_with("https://ekursy.put.poznan.pl/mod/") {
+        
+        if href.starts_with("https://ekursy.put.poznan.pl/pluginfile.php") {
+            return Some(PageFragment::Proxy{ text: get_trimmed_text(a_tag).unwrap_or_default(), link: href.replace("https://ekursy.put.poznan.pl/","") })
+        }
+
         return Some(PageFragment::Link{ text: get_trimmed_text(a_tag).unwrap_or_default(), link: href.into() })
     }
 

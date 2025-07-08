@@ -27,7 +27,7 @@ async fn extract_resource(req_url: &str, resp: reqwest::Response, client: &Clien
         let content_type = content_type_borrowed.to_owned();
 
         let Ok(bytes) = resp.bytes().await
-            else { return Err(ErrorResponse::UNABLE_TO_PARSE_RESPONSE_TEXT("No Content-Type header".into())) };
+            else { return Err(ErrorResponse::UNABLE_TO_PARSE_RESPONSE_TEXT("Bytes not recieved from remote WTF?".into())) };
         
 
         let headers = [
