@@ -9,175 +9,107 @@ pub const NAME: &'static str = "merkury";
 
 pub struct MerkuryParser;
 
-#[allow(non_camel_case_types)]
-#[derive(Debug, Serialize)]
-enum ResourceKind {
-    TITLE,
-    DESCRIPTION,
-    CARD_TITLE,
-    CARD_DESCRIPTION,
-    RESOURCE_DESCRIPTION,
-    FILE,
-    URL,
-    QUIZ,
-    OTHER,
-    INVALID
-}
 
 #[derive(Debug, Serialize)]
-struct Resource {
-    kind: ResourceKind,
-    data: Vec<String>,
-    id: Option<String>
+#[serde(tag = "type", rename_all = "lowercase")]
+enum Resource {
+    Text{ text: String },
+    Link{ text: String, link: String },
+    Iframe { src: String }
 }
 
-fn get_text<'a>(document: impl scraper::selectable::Selectable<'a>, selector: &Selector) -> Result<Vec<String>, ()>{
-    let Some(element) = document.select(&selector).next()
-        else { return Err(()) };
-
-    let mut text = vec![];
-    for text_node in element.text() {
-        text.push(text_node.into());
-    }
-
-    Ok(text)
-}
-
-fn list_text_in_child_paragraphs<'a>(document: impl scraper::selectable::Selectable<'a>, selector: &Selector) -> Result<Vec<String>, ()> {
-    let Some(element) = document.select(&selector).next()
-        else { return Err(()) };
-    
+fn try_explore_children(root: ElementRef)  -> Result<Vec<Resource>, ErrorResponse> {
     let mut out = vec![];
-    for p in element.select(&Selector::parse("p, li").unwrap()) {
-        let mut text = String::new();
-        for text_node in p.text(){
-            text += text_node;
+
+    if let Some(action) = root.attr("data-action") { // for this stupid "Mark as completed" button
+        if action == "toggle-manual-completion" {
+            return Ok(out);
         }
-        out.push(text);
     }
 
+    for child in root.children() {
+        if let Some(elem) = ElementRef::wrap(child) {
+            match try_parse_html_tree(elem) {
+                Ok(res) => out.extend(res),
+                Err(err) => return Err(err)
+            }
+        } else if child.value().is_text() {
+            let text = child.value().as_text().unwrap().to_string();
+            let trimmed = text.trim();
+            if trimmed.len() > 0 {
+                out.push(Resource::Text { text: trimmed.into() });
+            }
+        }
+    }
     Ok(out)
 }
 
-fn construct_resource<'a>(resource_element: ElementRef<'a>) -> Result<Resource, ErrorResponse> {
-    let resource_kind;
-
-    if resource_element.value().has_class("label", scraper::CaseSensitivity::AsciiCaseInsensitive) {
-        resource_kind = ResourceKind::RESOURCE_DESCRIPTION;
+// returns None if after trimming text == ""
+fn get_trimmed_text(root: ElementRef) -> Option<String> {
+    let text = root.text().collect::<Vec<_>>().concat();
+    let trimmed = text.trim();
+    if trimmed.len() == 0 {
+        return None
     }
-    else if resource_element.value().has_class("url", scraper::CaseSensitivity::AsciiCaseInsensitive) {
-        resource_kind = ResourceKind::URL;
-    }
-    else if resource_element.value().has_class("quiz", scraper::CaseSensitivity::AsciiCaseInsensitive) {
-        resource_kind = ResourceKind::QUIZ;
-    }
-    else if resource_element.value().has_class("resource", scraper::CaseSensitivity::AsciiCaseInsensitive) {
-        resource_kind = ResourceKind::FILE;
-    }
-    else {
-        resource_kind = ResourceKind::OTHER;
-    }
-
-    let text = match resource_kind {
-        ResourceKind::RESOURCE_DESCRIPTION => list_text_in_child_paragraphs(resource_element, &Selector::parse(".contentwithoutlink").unwrap()),
-        _ => get_text(resource_element, &Selector::parse(".activityinstance").unwrap())
-    };
-
-    let Ok(text_unwraped) = text
-        else { return Err(ErrorResponse::REMOTE_SERVER_SENT_INVALID_DATA("invalid resource".into())) };
-
-    let mut r = Resource {
-        kind: resource_kind,
-        data: text_unwraped,
-        id: None,
-    };
-
-    if let Some(resource_link) = resource_element.select(&Selector::parse(".aalink").unwrap()).next() {
-        if let Some(link) = resource_link.value().attr("href") {
-            r.id = Some(link.replace("https://ekursy.put.poznan.pl/mod/", "").replace("/view.php?", "$"))
-        }
-    }
-
-    Ok(r)
+    return Some(trimmed.into())
 }
 
-fn extract_resources<'a>(element: impl Selectable<'a>) -> Result<Vec<Resource>, ErrorResponse> {
+fn try_parse_html_tree(root: ElementRef) -> Result<Vec<Resource>, ErrorResponse> {
     let mut out = vec![];
-    let resource_selector = Selector::parse(".activity").unwrap();
-    for resource in element.select(&resource_selector) {
-        
-        let r = match construct_resource(resource) {
-            Ok(r) => r,
-            Err(_) => Resource { kind: ResourceKind::INVALID, data: vec!["Invalid resource".into()], id: None }
-        };
-
-        out.push(r);
+    match root.value().name().to_lowercase().as_str() {
+        "style" => (), // WHY TF WAS STYLE INSIDE A BODY TREE WTF
+        "p" => { 
+            match get_trimmed_text(root) {
+                Some(text) => out.push(Resource::Text{ text: text }),
+                None => ()
+            }
+        },
+        "a" => {
+            let href = root.attr("href").unwrap_or("#");
+            if href.starts_with("#") {
+                match get_trimmed_text(root) {
+                    Some(text) => out.push(Resource::Text{ text: text }),
+                    None => ()
+                }
+            } else {
+                out.push(Resource::Link{ text: get_trimmed_text(root).unwrap_or_default(), link: href.into() });
+            }
+        },
+        "iframe" => {
+            if let Some(src) = root.attr("src") {
+                out.push(Resource::Iframe { src: src.into() });
+            }
+        },
+        "span" | "li" => {
+            if let Some(_) = root.select(&Selector::parse("div, p, a").unwrap()).next() {
+                match try_explore_children(root) {
+                    Ok(res) => out.extend(res),
+                    Err(err) => return Err(err)
+                }
+            } else {
+                match get_trimmed_text(root) {
+                    Some(text) => out.push(Resource::Text{ text: text }),
+                    None => ()
+                }
+            }
+        },
+        _ => {
+            match try_explore_children(root) {
+                Ok(res) => out.extend(res),
+                Err(err) => return Err(err)
+            }
+        }
     }
-
     Ok(out)
 }
 
 fn try_parse(html_string: String) -> Result<Vec<Resource>, ErrorResponse> {
     let document = scraper::Html::parse_document(html_string.as_str());
 
-    let mut out = vec![];
+    let Some(content) = document.select(&Selector::parse("div.course-content").unwrap()).next()
+        else { return Err(ErrorResponse::AUTH_FAILED("Session expired".into())) };
 
-    // get title
-    let Ok(h1_text) = get_text(&document, &Selector::parse("h1").unwrap())
-        else { return Err(ErrorResponse::REMOTE_SERVER_SENT_INVALID_DATA("H1 not present".into())) };
-    
-    out.push(Resource { kind: ResourceKind::TITLE, data: h1_text, id: None });
-
-    // description
-    let Ok(desc) = list_text_in_child_paragraphs(&document, &Selector::parse(".summary:not(.card-text)").unwrap())
-        else { return Err(ErrorResponse::REMOTE_SERVER_SENT_INVALID_DATA("desc not present".into())) };
-
-    out.push(Resource { kind: ResourceKind::DESCRIPTION, data: desc, id: None });
-
-    let cards_selector = Selector::parse(".card.section.main > div").unwrap();
-    let cards = document.select(&cards_selector);
-    for card in cards {
-        let Ok(title) = get_text(card, &Selector::parse(".sectionname").unwrap())
-            else { return Err(ErrorResponse::REMOTE_SERVER_SENT_INVALID_DATA("card title not present".into())) };
-        out.push(Resource { kind: ResourceKind::CARD_TITLE, data: title, id: None });
-
-        let Ok(desc) = get_text(card, &Selector::parse(".summary").unwrap())
-            else { return Err(ErrorResponse::REMOTE_SERVER_SENT_INVALID_DATA("card desc not present".into())) };
-        out.push(Resource { kind: ResourceKind::CARD_DESCRIPTION, data: desc, id: None });
-
-        let resources = match extract_resources(card) {
-            Ok(r) => r,
-            Err(e) => return Err(e)
-        };
-
-        out.extend(resources);
-    }
-
-    let topics_selector = Selector::parse(".topics").unwrap();
-    let mut topics = document.select(&topics_selector);
-    let topics_container = topics.next();
-    if topics_container.is_none() {
-        return Ok(out)
-    } 
-
-    let sections_selector = Selector::parse(".section.main").unwrap();
-    let sections = document.select(&sections_selector);
-    for section in sections {
-        let Ok(title) = get_text(section, &Selector::parse("h3").unwrap())
-            else { return Err(ErrorResponse::REMOTE_SERVER_SENT_INVALID_DATA("title not present in section".into())) };
-        out.push(Resource { kind: ResourceKind::CARD_TITLE, data: title, id: None });
-
-        let resources = match extract_resources(section) {
-            Ok(r) => r,
-            Err(e) => return Err(e)
-        };
-
-        out.extend(resources);
-
-    }
-
-
-    Ok(out)
+    try_parse_html_tree(content)
 }
 
 impl Parser for MerkuryParser {
