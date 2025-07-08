@@ -53,12 +53,6 @@ fn parse_a_tag(a_tag: ElementRef) -> Option<PageFragment> {
 fn try_explore_children(root: ElementRef)  -> Result<Vec<PageFragment>, ErrorResponse> {
     let mut out = vec![];
 
-    if let Some(action) = root.attr("data-action") { // for this stupid "Mark as completed" button
-        if action == "toggle-manual-completion" {
-            return Ok(out);
-        }
-    }
-
     for child in root.children() {
         if let Some(elem) = ElementRef::wrap(child) {
             match try_parse_html_tree(elem) {
@@ -100,6 +94,7 @@ fn try_parse_html_tree(root: ElementRef) -> Result<Vec<PageFragment>, ErrorRespo
     }
 
     match root.value().name().to_lowercase().as_str() {
+        "button" => (), // surely there is nothing important in buttons
         "style" => (), // WHY TF WAS STYLE INSIDE A BODY TREE WTF
         "p" => { 
             match get_trimmed_text(root) {
