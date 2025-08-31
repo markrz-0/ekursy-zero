@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use axum::{http::HeaderValue, response::{IntoResponse, Response}, routing::post, Json, Router};
+use cookie::Cookie;
 use reqwest::{cookie::{CookieStore, Jar}, header::{HOST, ORIGIN, REFERER}, Client, Url};
 use scraper::Selector;
 use serde::{Deserialize, Serialize};
@@ -205,9 +206,18 @@ async fn get_moodle_session_key(sign_in: SignIn) -> Result<String, ErrorResponse
         Err(r) => return Err(r)
     };
 
-    if let Some(cookie) = jar.cookies(&"https://ekursy.put.poznan.pl/".parse::<Url>().unwrap()) {
-        let cookie_string = cookie.to_str().unwrap();
-        return Ok(cookie_string.to_owned());
+    if let Some(cookies) = jar.cookies(&"https://ekursy.put.poznan.pl/".parse::<Url>().unwrap()) {
+        let cookies_string = cookies.to_str().unwrap();
+
+        for cr in Cookie::split_parse(cookies_string) {
+            if let Ok(c) = cr {
+                if c.name() == "MoodleSession" {
+                    return Ok(c.value().into())
+                }
+            }
+        }
+
+        return Ok(cookies_string.to_owned());
     }
 
     Err(ErrorResponse::REMOTE_SERVER_SENT_INVALID_DATA("Moodle Session not found in response".into()))
