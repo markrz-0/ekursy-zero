@@ -55,7 +55,8 @@ struct AjaxResponse {
 #[derive(Debug, Serialize, Clone)]
 struct Course {
     name: String,
-    id: String
+    id: String,
+    category: String
 }
 
 #[derive(Debug)]
@@ -70,7 +71,11 @@ impl TryFrom<&AjaxResponseCourse> for Course {
         let Some(idx) = viewurl.find("id=")
             else { return Err(ParsingError) };
         let id = viewurl.split_off(idx + 3);
-        Ok(Course { name: value.fullname.clone(), id: id })
+        Ok(Course { 
+            name: value.fullname.clone(), 
+            id: id,
+            category: value.coursecategory.clone()
+        })
     }
 }
 
