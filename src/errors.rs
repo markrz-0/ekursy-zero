@@ -11,6 +11,7 @@ pub struct ErrorResponseDetails {
 #[allow(non_camel_case_types)]
 pub enum ErrorResponse {
     REMOTE_SERVER_DIDNT_RESPOND(String),
+    PARSER_FOR_THIS_RESOURCE_DOESNT_EXIST(String),
     UNABLE_TO_PARSE_RESPONSE_TEXT(String),
     REMOTE_SERVER_SENT_INVALID_DATA(String),
     AUTH_FAILED(String),
@@ -48,6 +49,12 @@ impl From<ErrorResponse> for ErrorResponseDetails {
                 ErrorResponseDetails { 
                     status_code: StatusCode::BAD_REQUEST,
                     error_code: "ERR-005".into(),
+                    msg
+                },
+            ErrorResponse::PARSER_FOR_THIS_RESOURCE_DOESNT_EXIST(msg) => 
+                ErrorResponseDetails { 
+                    status_code: StatusCode::UNPROCESSABLE_ENTITY,
+                    error_code: "ERR-006".into(),
                     msg
                 }
         }

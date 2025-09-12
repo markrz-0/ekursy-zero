@@ -126,7 +126,7 @@ async fn fetch_resource(moodle_session_cookie: String, resource_id: String, reso
     match resource_kind.as_str() {
         "resource" => return extract_resource(&url, resp, &client).await,
         "url" => return extract_url(resp).await,
-        _ => return Err(ErrorResponse::UNABLE_TO_PARSE_RESPONSE_TEXT("Unknown resource type".into()))
+        _ => return Err(ErrorResponse::PARSER_FOR_THIS_RESOURCE_DOESNT_EXIST(url.into()))
     } 
 }
 

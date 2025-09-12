@@ -89,7 +89,13 @@ fn get_trimmed_text(root: ElementRef) -> Option<String> {
 fn try_parse_html_tree(root: ElementRef) -> Result<Vec<PageFragment>, ErrorResponse> {
     let mut out = vec![];
 
-    if root.value().has_class("accesshide", scraper::CaseSensitivity::AsciiCaseInsensitive) {
+    if root.value().has_class("accesshide", scraper::CaseSensitivity::AsciiCaseInsensitive) ||
+        root.value().has_class("sr-only", scraper::CaseSensitivity::AsciiCaseInsensitive) ||
+        root.value().has_class("fa-sr-only", scraper::CaseSensitivity::AsciiCaseInsensitive) ||
+        root.value().has_class("collapseall", scraper::CaseSensitivity::AsciiCaseInsensitive) ||
+        root.value().has_class("expandall", scraper::CaseSensitivity::AsciiCaseInsensitive) ||
+        root.value().has_class("icons-collapse-expand", scraper::CaseSensitivity::AsciiCaseInsensitive)
+        {
         return Ok(out);
     }
 
@@ -97,6 +103,14 @@ fn try_parse_html_tree(root: ElementRef) -> Result<Vec<PageFragment>, ErrorRespo
         root.value().has_class("main", scraper::CaseSensitivity::AsciiCaseInsensitive
         ) {
         out.push(PageFragment::SectionSeparator);
+    }
+
+    if root.value().has_class("sectionname", scraper::CaseSensitivity::AsciiCaseInsensitive) {
+        match get_trimmed_text(root) {
+            Some(text) => out.push(PageFragment::Caption{ text: text }),
+            None => ()
+        }
+        return Ok(out);
     }
 
     match root.value().name().to_lowercase().as_str() {
