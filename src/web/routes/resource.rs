@@ -76,7 +76,7 @@ async fn extract_resource(req_url: &str, resp: reqwest::Response, client: &Clien
 
     // TODO: video test & other
 
-    return Err(ErrorResponse::BAD_REQUEST("No parser for requested resource of type \"resource\" exists".into()));
+    return Err(ErrorResponse::PARSER_FOR_THIS_RESOURCE_DOESNT_EXIST("".into()));
 }
 
 async fn extract_url(resp: reqwest::Response) -> Result<Response, ErrorResponse> {
