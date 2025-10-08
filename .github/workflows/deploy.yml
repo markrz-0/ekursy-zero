@@ -1,0 +1,36 @@
+name: Docker Build and Deploy
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Build Docker image
+        run: docker build -t ekursy-zero .
+
+      - name: Deploy on the Server
+        run: |
+          # Stop and remove the existing container if it's running
+          # Using '|| true' ensures the workflow doesn't fail if the container doesn't exist
+          docker stop ekursy-zero-container || true
+          docker rm ekursy-zero-container || true
+
+          # Run a new container from the locally built image
+          # -d runs the container in detached mode
+          # -p maps port 80 on the server to port 3000 in the container
+          # --name gives the container a consistent name for easy management
+          # --restart always ensures the container restarts if the server reboots
+          # -e passes environment variables from GitHub Secrets
+          docker run -d \
+            --name ekursy-zero-container \
+            --network ekursy-network \
+            --restart always \
+            ekursy-zero
