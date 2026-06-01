@@ -9,4 +9,5 @@ pub fn routes() -> Router {
         .merge(routes::course::routes())
         .merge(routes::resource::routes())
         .merge(routes::proxy::routes())
+        .merge(routes::me::routes())
 }
