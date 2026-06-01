@@ -10,4 +10,5 @@ pub fn routes() -> Router {
         .merge(routes::resource::routes())
         .merge(routes::proxy::routes())
         .merge(routes::me::routes())
+        .merge(routes::course_grades::routes())
 }

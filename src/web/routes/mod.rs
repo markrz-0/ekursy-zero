@@ -4,3 +4,4 @@ pub mod login;
 pub mod resource;
 pub mod proxy;
 pub mod me;
+pub mod course_grades;
