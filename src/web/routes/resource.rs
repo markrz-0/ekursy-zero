@@ -5,7 +5,7 @@ use reqwest::{cookie::Jar, header::{AUTHORIZATION, CONTENT_TYPE, HOST}, Client, 
 use scraper::Selector;
 use serde::Deserialize;
 
-use crate::{errors::ErrorResponse, util::generic_firefox_headers};
+use crate::{errors::ErrorResponse, parsers::{available_parsers, mercury}, util::generic_firefox_headers};
 
 pub fn routes() -> Router {
     Router::new()
@@ -98,6 +98,13 @@ async fn extract_url(resp: reqwest::Response) -> Result<Response, ErrorResponse>
     return Ok(Redirect::to(url).into_response());
 }
 
+async fn extract_assignment(resp: reqwest::Response) -> Result<Response, ErrorResponse> {
+    let Ok(text) = resp.text().await
+        else { return Err(ErrorResponse::REMOTE_SERVER_SENT_INVALID_DATA("ekursy course response couldnt be parsed".into())) };
+
+    Ok(available_parsers()[mercury::NAME].as_ref().parse( text, "###".into()))
+}
+
 // moodle_session_cookie string in a format MoodleSession=XXXXX
 async fn fetch_resource(moodle_session_cookie: String, resource_id: String, resource_kind: String) -> Result<Response, ErrorResponse> {
     let jar: Arc<Jar> = Jar::default().into();
@@ -119,13 +126,16 @@ async fn fetch_resource(moodle_session_cookie: String, resource_id: String, reso
         .await
         else { return Err(ErrorResponse::REMOTE_SERVER_DIDNT_RESPOND("ekursy resource".into())) };
     
+    println!("PRE SESSION");
     if resp.url().to_string().starts_with("https://ekursy.put.poznan.pl/login/index.php") {
         return Err(ErrorResponse::AUTH_FAILED("Session expired".into()))
     }
+    println!("SESSION IS GOOD");
 
     match resource_kind.as_str() {
         "resource" => return extract_resource(&url, resp, &client).await,
         "url" => return extract_url(resp).await,
+        "assign" => return extract_assignment(resp).await,
         _ => return Err(ErrorResponse::PARSER_FOR_THIS_RESOURCE_DOESNT_EXIST(url.into()))
     } 
 }

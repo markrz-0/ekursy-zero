@@ -33,6 +33,14 @@ fn parse_a_tag(a_tag: ElementRef) -> Option<PageFragment> {
         }
     }
 
+    if href.starts_with("https://ekursy.put.poznan.pl/user") {
+        return None;
+    }
+
+    if href.starts_with("https://ekursy.put.poznan.pl/course") {
+        return None;
+    }
+
     if ! href.starts_with("https://ekursy.put.poznan.pl/mod/") {
         
         if href.starts_with("https://ekursy.put.poznan.pl/pluginfile.php") {
@@ -94,7 +102,10 @@ fn try_parse_html_tree(root: ElementRef) -> Result<Vec<PageFragment>, ErrorRespo
         root.value().has_class("fa-sr-only", scraper::CaseSensitivity::AsciiCaseInsensitive) ||
         root.value().has_class("collapseall", scraper::CaseSensitivity::AsciiCaseInsensitive) ||
         root.value().has_class("expandall", scraper::CaseSensitivity::AsciiCaseInsensitive) ||
-        root.value().has_class("icons-collapse-expand", scraper::CaseSensitivity::AsciiCaseInsensitive)
+        root.value().has_class("icons-collapse-expand", scraper::CaseSensitivity::AsciiCaseInsensitive) ||
+        root.value().has_class("local-accessibility-buttoncontainer", scraper::CaseSensitivity::AsciiCaseInsensitive) ||
+        root.value().has_class("readbtn", scraper::CaseSensitivity::AsciiCaseInsensitive) ||
+        root.value().has_class("local-accessibility-panel", scraper::CaseSensitivity::AsciiCaseInsensitive)
         {
         return Ok(out);
     }
@@ -116,12 +127,6 @@ fn try_parse_html_tree(root: ElementRef) -> Result<Vec<PageFragment>, ErrorRespo
     match root.value().name().to_lowercase().as_str() {
         "button" => (), // surely there is nothing important in buttons
         "style" => (), // WHY TF WAS STYLE INSIDE A BODY TREE WTF
-        "p" => { 
-            match get_trimmed_text(root) {
-                Some(text) => out.push(PageFragment::Text{ text: text }),
-                None => ()
-            }
-        },
         "a" => {
             match parse_a_tag(root) {
                 Some(fragment) => out.push(fragment),
@@ -133,7 +138,7 @@ fn try_parse_html_tree(root: ElementRef) -> Result<Vec<PageFragment>, ErrorRespo
                 out.push(PageFragment::Iframe { src: src.into() });
             }
         },
-        "span" | "li" => {
+        "p" | "span" | "li" => {
             if let Some(_) = root.select(&Selector::parse("div, p, a, ul").unwrap()).next() {
                 match try_explore_children(root) {
                     Ok(res) => out.extend(res),
@@ -203,12 +208,18 @@ fn try_parse(html_string: String, course_id: String) -> Result<Vec<PageFragment>
         html_string.replace(full_course_url.as_str(),"").as_str()
     );
 
-    let Some(content) = document.select(&Selector::parse("div.course-content").unwrap()).next()
-        else { return Err(ErrorResponse::AUTH_FAILED("Session expired".into())) };
+    // div course content for course page
+    // page content for assignment page
+    let selectors = vec!["div.course-content", "#page-content"];
+    for selector in selectors {
+        if let Some(content) = document.select(&Selector::parse(selector).unwrap()).next() {
+            let out = try_parse_html_tree(content)?;
+        
+            return Ok(merge_orphans(out))
+        }
+    }
 
-    let out = try_parse_html_tree(content)?;
-
-    Ok(merge_orphans(out))
+    return Err(ErrorResponse::AUTH_FAILED("Session expired".into()))
 }
 
 impl Parser for MercuryParser {
