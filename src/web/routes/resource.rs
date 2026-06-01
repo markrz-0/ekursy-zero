@@ -19,6 +19,12 @@ struct ResourceQuery {
     kind: Option<String>
 }
 
+#[derive(Debug, Default)]
+struct ResourceExtractorData {
+    iframe_src: Option<String>,
+    resource_url: Option<String>
+}
+
 async fn extract_resource(req_url: &str, resp: reqwest::Response, client: &Client) -> Result<Response, ErrorResponse> {
     // external file redirect
     if req_url != resp.url().to_string() {
@@ -36,14 +42,22 @@ async fn extract_resource(req_url: &str, resp: reqwest::Response, client: &Clien
     // weird scopy thing
     // https://github.com/rust-lang/rust/issues/63768
     // https://users.rust-lang.org/t/future-is-not-send-as-this-value-is-used-across-an-await-but-i-drop-the-value-before-the-await/57574/5
-    let iframe_src: Result<String, ()> = { 
+    let data: ResourceExtractorData = { 
         let document = scraper::Html::parse_document(text.as_str());
+        let mut out: ResourceExtractorData = Default::default();
+        
         let iframe = document.select(&Selector::parse("iframe").unwrap()).next();
-        let mut out: Result<String, ()> = Err(());
         if iframe.is_some() {
             let src = iframe.unwrap().value().attr("src");
             if src.is_some() {
-                out = Ok(src.unwrap().to_owned())
+                out.iframe_src = Some(src.unwrap().to_owned())
+            }
+        }
+
+        let resource_workaround_anchor = document.select(&Selector::parse(".resourceworkaround > a").unwrap()).next();
+        if resource_workaround_anchor.is_some() {
+            if let Some(url) = resource_workaround_anchor.unwrap().value().attr("href") {
+                out.resource_url = Some(url.into());
             }
         }
         // non-Send variables document and iframe are implicitly dropped and dont infect the function
@@ -51,9 +65,9 @@ async fn extract_resource(req_url: &str, resp: reqwest::Response, client: &Clien
         out
     };
 
-    if iframe_src.is_ok() {
+    if data.iframe_src.is_some() {
         let Ok(resp2) = client
-            .get(&iframe_src.unwrap())
+            .get(&data.iframe_src.unwrap())
             .header(HOST, HeaderValue::from_static("ekursy.put.poznan.pl"))
             .send()
             .await
@@ -74,9 +88,32 @@ async fn extract_resource(req_url: &str, resp: reqwest::Response, client: &Clien
         return Ok((headers, bytes).into_response())
     }
 
+    if data.resource_url.is_some() {
+        let Ok(resp2) = client
+            .get(&data.resource_url.unwrap())
+            .header(HOST, HeaderValue::from_static("ekursy.put.poznan.pl"))
+            .send()
+            .await
+            else { return Err(ErrorResponse::REMOTE_SERVER_DIDNT_RESPOND("weird redirect (new window) resource".into())) };
+        
+        let Some(content_type_borrowed) = resp2.headers().get(CONTENT_TYPE)
+            else { return Err(ErrorResponse::REMOTE_SERVER_SENT_INVALID_DATA("No Content-Type header".into())) };
+        let content_type = content_type_borrowed.to_owned();
+
+        let Ok(bytes) = resp2.bytes().await
+            else { return Err(ErrorResponse::UNABLE_TO_PARSE_RESPONSE_TEXT("Invalid bytes. WTF?".into())) };
+        
+
+        let headers = [
+            (CONTENT_TYPE, content_type)
+        ];
+
+        return Ok((headers, bytes).into_response())
+    }
+
     // TODO: video test & other
 
-    return Err(ErrorResponse::PARSER_FOR_THIS_RESOURCE_DOESNT_EXIST("".into()));
+    return Err(ErrorResponse::PARSER_FOR_THIS_RESOURCE_DOESNT_EXIST(req_url.into()));
 }
 
 async fn extract_url(resp: reqwest::Response) -> Result<Response, ErrorResponse> {
