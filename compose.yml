@@ -1,0 +1,8 @@
+services:
+  ekursy-zero:
+    build:
+      context: .
+    container_name: zero_scraper
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
