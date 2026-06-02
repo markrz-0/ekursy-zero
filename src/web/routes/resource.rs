@@ -149,6 +149,13 @@ async fn extract_page(resp: reqwest::Response) -> Result<Response, ErrorResponse
     Ok(available_parsers()[mercury::NAME].as_ref().parse( text, "###".into()))
 }
 
+async fn extract_folder(resp: reqwest::Response) -> Result<Response, ErrorResponse> {
+    let Ok(text) = resp.text().await
+        else { return Err(ErrorResponse::REMOTE_SERVER_SENT_INVALID_DATA("ekursy course response couldnt be parsed".into())) };
+
+    Ok(available_parsers()[mercury::NAME].as_ref().parse( text, "###".into()))
+}
+
 // moodle_session_cookie string in a format MoodleSession=XXXXX
 async fn fetch_resource(moodle_session_cookie: String, resource_id: String, resource_kind: String) -> Result<Response, ErrorResponse> {
     let jar: Arc<Jar> = Jar::default().into();
@@ -181,6 +188,7 @@ async fn fetch_resource(moodle_session_cookie: String, resource_id: String, reso
         "url" => return extract_url(resp).await,
         "assign" => return extract_assignment(resp).await,
         "page" => return extract_page(resp).await,
+        "folder" => return extract_folder(resp).await,
         _ => return Err(ErrorResponse::PARSER_FOR_THIS_RESOURCE_DOESNT_EXIST(url.into()))
     } 
 }
