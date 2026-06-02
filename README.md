@@ -9,3 +9,6 @@ docker compose up -d
 ```
 
 It will compile and deploy the app (it will take some time cuz it's rust)
+
+
+See `API_ENDPOINTS.md` for more info
