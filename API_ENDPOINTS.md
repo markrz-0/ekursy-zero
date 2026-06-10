@@ -34,3 +34,6 @@ You must set the `Authorization` Header to the value of `moodleSessionKey` retur
 |GET|`/api/course_grades?id=<course_id>`|returns course grades as a tree like structure correspoinding to grades view on moodle
 |GET|`/api/resource?id=<resource_id>&kind=<resource_kind>`|returns resource - not JSON, watch Content-Type header. Might also return redirect to external URL
 |GET|`/api/proxy?path=<path>`|appends <path> query param to `https://ekursy.put.poznan.pl/` and returns raw output
+|GET|`/api/forum?id=<forum_id>`|returns forum details and lists discussion threads (titles and IDs)
+|GET|`/api/forum/discussion?id=<discussion_id>`|returns a list of discussion thread posts (subject, author, timestamp, content)
+

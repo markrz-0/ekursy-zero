@@ -5,3 +5,4 @@ pub mod resource;
 pub mod proxy;
 pub mod me;
 pub mod course_grades;
+pub mod forum;

@@ -8,6 +8,7 @@ pub struct ErrorResponseDetails {
     msg: String
 }
 
+#[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub enum ErrorResponse {
     REMOTE_SERVER_DIDNT_RESPOND(String),

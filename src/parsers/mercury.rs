@@ -21,6 +21,7 @@ enum PageFragment {
     Proxy{ text: String, link: String },
     Iframe { src: String },
     Resource{ text: String, id: String, kind: String },
+    Forum{ text: String, id: String },
     SectionSeparator
 }
 
@@ -48,6 +49,15 @@ fn parse_a_tag(a_tag: ElementRef) -> Option<PageFragment> {
         }
 
         return Some(PageFragment::Link{ text: get_trimmed_text(a_tag).unwrap_or_default(), link: href.into() })
+    }
+
+    if href.starts_with("https://ekursy.put.poznan.pl/mod/forum/view.php?id=") {
+        let id = href.replace("https://ekursy.put.poznan.pl/mod/forum/view.php?id=", "");
+        let id = id.split('&').next().unwrap_or("").to_string();
+        return Some(PageFragment::Forum {
+            text: get_trimmed_text(a_tag).unwrap_or_default(),
+            id,
+        });
     }
 
     let resource_suffix = href.replace("https://ekursy.put.poznan.pl/mod/", "");
