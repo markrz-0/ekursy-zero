@@ -15,7 +15,7 @@ pub fn routes() -> Router {
 async fn me_info(moodle_session_cookie: String) -> Result<Response, ErrorResponse> {
     let jar: Arc<Jar> = Jar::default().into();
 
-    jar.add_cookie_str(&moodle_session_cookie, &"https://ekursy.put.poznan.pl".parse::<Url>().unwrap());
+    jar.add_cookie_str(&moodle_session_cookie, &crate::util::ekursy_base_url().parse::<Url>().unwrap());
 
     let client = Client::builder()
         .cookie_provider(jar)
@@ -23,16 +23,16 @@ async fn me_info(moodle_session_cookie: String) -> Result<Response, ErrorRespons
         .build()
         .unwrap();
 
-    let url = format!("https://ekursy.put.poznan.pl/user/profile.php");
+    let url = format!("{}/user/profile.php", crate::util::ekursy_base_url());
 
     let Ok(resp) = client
         .get(&url)
-        .header(HOST, HeaderValue::from_static("ekursy.put.poznan.pl"))
+        .header(HOST, HeaderValue::from_str(crate::util::ekursy_host()).unwrap())
         .send()
         .await
         else { return Err(ErrorResponse::REMOTE_SERVER_DIDNT_RESPOND("ekursy resource".into())) };
     
-    if resp.url().to_string().starts_with("https://ekursy.put.poznan.pl/login/index.php") {
+    if resp.url().to_string().starts_with(&format!("{}/login/index.php", crate::util::ekursy_base_url())) {
         return Err(ErrorResponse::AUTH_FAILED("Session expired".into()))
     }
 

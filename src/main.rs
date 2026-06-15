@@ -4,6 +4,10 @@ mod parsers;
 mod errors;
 mod util;
 
+#[cfg(test)]
+mod tests;
+
+
 use std::net::SocketAddr;
 
 use axum::{middleware, Router};

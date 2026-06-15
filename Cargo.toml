@@ -21,3 +21,7 @@ cookie = "0.18.1"
 
 [dev-dependencies]
 anyhow = "1"
+wiremock = "0.6"
+tower = { version = "0.5", features = ["util"] }
+dotenvy = "0.15"
+

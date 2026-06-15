@@ -68,7 +68,7 @@ async fn extract_resource(req_url: &str, resp: reqwest::Response, client: &Clien
     if data.iframe_src.is_some() {
         let Ok(resp2) = client
             .get(&data.iframe_src.unwrap())
-            .header(HOST, HeaderValue::from_static("ekursy.put.poznan.pl"))
+            .header(HOST, HeaderValue::from_str(crate::util::ekursy_host()).unwrap())
             .send()
             .await
             else { return Err(ErrorResponse::REMOTE_SERVER_DIDNT_RESPOND("iframe resource".into())) };
@@ -91,7 +91,7 @@ async fn extract_resource(req_url: &str, resp: reqwest::Response, client: &Clien
     if data.resource_url.is_some() {
         let Ok(resp2) = client
             .get(&data.resource_url.unwrap())
-            .header(HOST, HeaderValue::from_static("ekursy.put.poznan.pl"))
+            .header(HOST, HeaderValue::from_str(crate::util::ekursy_host()).unwrap())
             .send()
             .await
             else { return Err(ErrorResponse::REMOTE_SERVER_DIDNT_RESPOND("weird redirect (new window) resource".into())) };
@@ -160,7 +160,7 @@ async fn extract_folder(resp: reqwest::Response) -> Result<Response, ErrorRespon
 async fn fetch_resource(moodle_session_cookie: String, resource_id: String, resource_kind: String) -> Result<Response, ErrorResponse> {
     let jar: Arc<Jar> = Jar::default().into();
 
-    jar.add_cookie_str(&moodle_session_cookie, &"https://ekursy.put.poznan.pl".parse::<Url>().unwrap());
+    jar.add_cookie_str(&moodle_session_cookie, &crate::util::ekursy_base_url().parse::<Url>().unwrap());
 
     let client = Client::builder()
         .cookie_provider(jar)
@@ -168,17 +168,17 @@ async fn fetch_resource(moodle_session_cookie: String, resource_id: String, reso
         .build()
         .unwrap();
 
-    let url = format!("https://ekursy.put.poznan.pl/mod/{}/view.php?id={}", resource_kind, resource_id);
+    let url = format!("{}/mod/{}/view.php?id={}", crate::util::ekursy_base_url(), resource_kind, resource_id);
 
     let Ok(resp) = client
         .get(&url)
-        .header(HOST, HeaderValue::from_static("ekursy.put.poznan.pl"))
+        .header(HOST, HeaderValue::from_str(crate::util::ekursy_host()).unwrap())
         .send()
         .await
         else { return Err(ErrorResponse::REMOTE_SERVER_DIDNT_RESPOND("ekursy resource".into())) };
     
     println!("PRE SESSION");
-    if resp.url().to_string().starts_with("https://ekursy.put.poznan.pl/login/index.php") {
+    if resp.url().to_string().starts_with(&format!("{}/login/index.php", crate::util::ekursy_base_url())) {
         return Err(ErrorResponse::AUTH_FAILED("Session expired".into()))
     }
     println!("SESSION IS GOOD");

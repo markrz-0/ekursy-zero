@@ -60,7 +60,7 @@ struct ParsedRow {
 async fn get_course_grades_html(moodle_session_cookie: String, course_id: String) -> Result<String, ErrorResponse> {
     let jar: Arc<Jar> = Jar::default().into();
 
-    jar.add_cookie_str(&moodle_session_cookie, &"https://ekursy.put.poznan.pl".parse::<Url>().unwrap());
+    jar.add_cookie_str(&moodle_session_cookie, &crate::util::ekursy_base_url().parse::<Url>().unwrap());
 
     let client = Client::builder()
         .cookie_provider(jar)
@@ -68,11 +68,11 @@ async fn get_course_grades_html(moodle_session_cookie: String, course_id: String
         .build()
         .unwrap();
 
-    let url = format!("https://ekursy.put.poznan.pl/grade/report/user/index.php?id={}", course_id);
+    let url = format!("{}/grade/report/user/index.php?id={}", crate::util::ekursy_base_url(), course_id);
 
     let Ok(resp) = client
         .get(&url)
-        .header(HOST, HeaderValue::from_static("ekursy.put.poznan.pl"))
+        .header(HOST, HeaderValue::from_str(crate::util::ekursy_host()).unwrap())
         .send()
         .await
         else { return Err(ErrorResponse::REMOTE_SERVER_DIDNT_RESPOND("ekursy course".into())) };

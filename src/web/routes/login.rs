@@ -42,10 +42,12 @@ struct Redirect2Data {
 // returns (current page url [after redirects], login page text content)
 async fn init_requests_chain(client: &Client) -> Result<(Url, String), ErrorResponse> {
 
+    let elogin_url = format!("{}/", crate::util::elogin_base_url());
+    let referer_url = format!("{}/", crate::util::ekursy_base_url());
     let Ok(resp) = client
-        .get("https://elogin.put.poznan.pl/")
-        .header(REFERER, HeaderValue::from_str("https://ekursy.put.poznan.pl/").unwrap())
-        .header(HOST, HeaderValue::from_str("elogin.put.poznan.pl").unwrap())
+        .get(&elogin_url)
+        .header(REFERER, HeaderValue::from_str(&referer_url).unwrap())
+        .header(HOST, HeaderValue::from_str(crate::util::elogin_host()).unwrap())
         .query(&[("do", "Authorize"), ("system", "ekursy.esys.put.poznan.pl")])
         .send()
         .await
@@ -81,8 +83,8 @@ async fn login_into_elogin(client: &Client, elogin_url: Url, elogin: &EloginSign
     let Ok(resp) = client
         .post(elogin_url.clone())
         .header(REFERER, HeaderValue::from_str(elogin_url.clone().as_str()).unwrap())
-        .header(HOST, HeaderValue::from_str("elogin.put.poznan.pl").unwrap())
-        .header(ORIGIN, "https://elogin.put.poznan.pl")
+        .header(HOST, HeaderValue::from_str(crate::util::elogin_host()).unwrap())
+        .header(ORIGIN, crate::util::elogin_base_url())
         .form(elogin)
         .send()
         .await
@@ -100,12 +102,17 @@ async fn login_into_elogin(client: &Client, elogin_url: Url, elogin: &EloginSign
 }
 
 async fn send_redirect_forms(client: &Client, redirect2_data: &Redirect2Data) -> Result<(), ErrorResponse> {
+    let redirect1_url = format!("{}/auth/ekonto/redirect.php", crate::util::ekursy_base_url());
+    let redirect2_url = format!("{}/login/index.php", crate::util::ekursy_base_url());
+    let referer_elogin = format!("{}/", crate::util::elogin_base_url());
+    let referer_redirect1 = format!("{}/auth/ekonto/redirect.php", crate::util::ekursy_base_url());
+
     // browser does this request, it seams kinda useless
     let Ok(_) = client
-        .post("https://ekursy.put.poznan.pl/auth/ekonto/redirect.php")
-        .header(REFERER, HeaderValue::from_str("https://elogin.put.poznan.pl/").unwrap())
-        .header(HOST, HeaderValue::from_str("ekursy.put.poznan.pl").unwrap())
-        .header(ORIGIN, "https://elogin.put.poznan.pl")
+        .post(&redirect1_url)
+        .header(REFERER, HeaderValue::from_str(&referer_elogin).unwrap())
+        .header(HOST, HeaderValue::from_str(crate::util::ekursy_host()).unwrap())
+        .header(ORIGIN, crate::util::elogin_base_url())
         .form(redirect2_data)
         .send()
         .await
@@ -113,10 +120,10 @@ async fn send_redirect_forms(client: &Client, redirect2_data: &Redirect2Data) ->
 
     // this sets moodle session id
     let Ok(_) = client
-        .post("https://ekursy.put.poznan.pl/login/index.php")
-        .header(REFERER, HeaderValue::from_str("https://ekursy.put.poznan.pl/auth/ekonto/redirect.php").unwrap())
-        .header(HOST, HeaderValue::from_str("ekursy.put.poznan.pl").unwrap())
-        .header(ORIGIN, "https://elogin.put.poznan.pl")
+        .post(&redirect2_url)
+        .header(REFERER, HeaderValue::from_str(&referer_redirect1).unwrap())
+        .header(HOST, HeaderValue::from_str(crate::util::ekursy_host()).unwrap())
+        .header(ORIGIN, crate::util::elogin_base_url())
         .form(redirect2_data)
         .send()
         .await
@@ -206,7 +213,8 @@ async fn get_moodle_session_key(sign_in: SignIn) -> Result<String, ErrorResponse
         Err(r) => return Err(r)
     };
 
-    if let Some(cookies) = jar.cookies(&"https://ekursy.put.poznan.pl/".parse::<Url>().unwrap()) {
+    let ekursy_url_parsed = format!("{}/", crate::util::ekursy_base_url()).parse::<Url>().unwrap();
+    if let Some(cookies) = jar.cookies(&ekursy_url_parsed) {
         let cookies_string = cookies.to_str().unwrap();
 
         for cr in Cookie::split_parse(cookies_string) {

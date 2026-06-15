@@ -198,7 +198,7 @@ async fn get_forum_html(moodle_session_cookie: String, forum_id: String) -> Resu
     let jar: Arc<Jar> = Jar::default().into();
     jar.add_cookie_str(
         &moodle_session_cookie,
-        &"https://ekursy.put.poznan.pl".parse::<Url>().unwrap(),
+        &crate::util::ekursy_base_url().parse::<Url>().unwrap(),
     );
 
     let client = Client::builder()
@@ -207,18 +207,18 @@ async fn get_forum_html(moodle_session_cookie: String, forum_id: String) -> Resu
         .build()
         .unwrap();
 
-    let url = format!("https://ekursy.put.poznan.pl/mod/forum/view.php?id={}", forum_id);
+    let url = format!("{}/mod/forum/view.php?id={}", crate::util::ekursy_base_url(), forum_id);
 
     let Ok(resp) = client
         .get(&url)
-        .header(HOST, HeaderValue::from_static("ekursy.put.poznan.pl"))
+        .header(HOST, HeaderValue::from_str(crate::util::ekursy_host()).unwrap())
         .send()
         .await
     else {
         return Err(ErrorResponse::REMOTE_SERVER_DIDNT_RESPOND("ekursy forum".into()));
     };
 
-    if resp.url().to_string().starts_with("https://ekursy.put.poznan.pl/login/index.php") {
+    if resp.url().to_string().starts_with(&format!("{}/login/index.php", crate::util::ekursy_base_url())) {
         return Err(ErrorResponse::AUTH_FAILED("Session expired".into()));
     }
 
@@ -235,7 +235,7 @@ async fn get_discussion_html(moodle_session_cookie: String, discuss_id: String) 
     let jar: Arc<Jar> = Jar::default().into();
     jar.add_cookie_str(
         &moodle_session_cookie,
-        &"https://ekursy.put.poznan.pl".parse::<Url>().unwrap(),
+        &crate::util::ekursy_base_url().parse::<Url>().unwrap(),
     );
 
     let client = Client::builder()
@@ -244,18 +244,18 @@ async fn get_discussion_html(moodle_session_cookie: String, discuss_id: String) 
         .build()
         .unwrap();
 
-    let url = format!("https://ekursy.put.poznan.pl/mod/forum/discuss.php?d={}", discuss_id);
+    let url = format!("{}/mod/forum/discuss.php?d={}", crate::util::ekursy_base_url(), discuss_id);
 
     let Ok(resp) = client
         .get(&url)
-        .header(HOST, HeaderValue::from_static("ekursy.put.poznan.pl"))
+        .header(HOST, HeaderValue::from_str(crate::util::ekursy_host()).unwrap())
         .send()
         .await
     else {
         return Err(ErrorResponse::REMOTE_SERVER_DIDNT_RESPOND("ekursy discussion".into()));
     };
 
-    if resp.url().to_string().starts_with("https://ekursy.put.poznan.pl/login/index.php") {
+    if resp.url().to_string().starts_with(&format!("{}/login/index.php", crate::util::ekursy_base_url())) {
         return Err(ErrorResponse::AUTH_FAILED("Session expired".into()));
     }
 

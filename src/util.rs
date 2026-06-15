@@ -21,3 +21,37 @@ pub fn generic_firefox_headers() -> HeaderMap<HeaderValue> {
 
     return header_map;
 }
+
+use std::sync::OnceLock;
+
+static EKURSY_BASE_URL: OnceLock<String> = OnceLock::new();
+static ELOGIN_BASE_URL: OnceLock<String> = OnceLock::new();
+
+pub fn ekursy_base_url() -> &'static str {
+    EKURSY_BASE_URL.get_or_init(|| {
+        std::env::var("EKURSY_BASE_URL").unwrap_or_else(|_| "https://ekursy.put.poznan.pl".to_string())
+    })
+}
+
+pub fn elogin_base_url() -> &'static str {
+    ELOGIN_BASE_URL.get_or_init(|| {
+        std::env::var("ELOGIN_BASE_URL").unwrap_or_else(|_| "https://elogin.put.poznan.pl".to_string())
+    })
+}
+
+pub fn ekursy_host() -> &'static str {
+    static EKURSY_HOST: OnceLock<String> = OnceLock::new();
+    EKURSY_HOST.get_or_init(|| {
+        let url = reqwest::Url::parse(ekursy_base_url()).unwrap();
+        url.host_str().unwrap_or("ekursy.put.poznan.pl").to_string()
+    })
+}
+
+pub fn elogin_host() -> &'static str {
+    static ELOGIN_HOST: OnceLock<String> = OnceLock::new();
+    ELOGIN_HOST.get_or_init(|| {
+        let url = reqwest::Url::parse(elogin_base_url()).unwrap();
+        url.host_str().unwrap_or("elogin.put.poznan.pl").to_string()
+    })
+}
+
