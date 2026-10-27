@@ -32,6 +32,7 @@ You must set the `Authorization` Header to the value of `moodleSessionKey` retur
 |GET|`/api/course_list`|returns list of available courses (won't return hidden courses)
 |GET|`/api/course?id=<course_id>`|returns course content as a list of page fragments|
 |GET|`/api/course_grades?id=<course_id>`|returns course grades as a tree like structure correspoinding to grades view on moodle
+|GET|`/api/course_deadlines?id=<course_id>&from=<unix_ts>&to=<unix_ts>`|returns pending action events (assignment due dates, quiz closes, etc.) for the course sorted by `timesort`, works for courses hidden from dashboard too. `from`/`to` are optional unix timestamps; omitting `from` also includes overdue items
 |GET|`/api/resource?id=<resource_id>&kind=<resource_kind>`|returns resource - not JSON, watch Content-Type header. Might also return redirect to external URL
 |GET|`/api/proxy?path=<path>`|appends <path> query param to `https://ekursy.put.poznan.pl/` and returns raw output
 |GET|`/api/forum?id=<forum_id>`|returns forum details and lists discussion threads (titles and IDs)

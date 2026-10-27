@@ -79,7 +79,7 @@ impl TryFrom<&AjaxResponseCourse> for Course {
     }
 }
 
-fn get_sesskey(html: String) -> Result<String, ErrorResponse> {
+pub fn get_sesskey(html: String) -> Result<String, ErrorResponse> {
     let document = scraper::Html::parse_document(html.as_str());
     let selector = Selector::parse("input[name=sesskey]").unwrap();
     let Some(element) = document.select(&selector).next()

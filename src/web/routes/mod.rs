@@ -6,3 +6,4 @@ pub mod proxy;
 pub mod me;
 pub mod course_grades;
 pub mod forum;
+pub mod course_deadlines;
