@@ -119,7 +119,7 @@ async fn get_course_deadlines(moodle_session_cookie: String, course_id: u64, fro
 
     let jar: Arc<Jar> = Jar::default().into();
 
-    jar.add_cookie_str(&moodle_session_cookie, &"https://ekursy.put.poznan.pl".parse::<Url>().unwrap());
+    jar.add_cookie_str(&moodle_session_cookie, &crate::util::ekursy_base_url().parse::<Url>().unwrap());
 
     let client = Client::builder()
         .cookie_provider(jar)
@@ -127,9 +127,10 @@ async fn get_course_deadlines(moodle_session_cookie: String, course_id: u64, fro
         .build()
         .unwrap();
 
+    let dashboard_url = format!("{}/my", crate::util::ekursy_base_url());
     let Ok(resp_dashboard) = client
-        .get("https://ekursy.put.poznan.pl/my")
-        .header(HOST, HeaderValue::from_static("ekursy.put.poznan.pl"))
+        .get(&dashboard_url)
+        .header(HOST, HeaderValue::from_str(crate::util::ekursy_host()).unwrap())
         .send()
         .await
         else { return Err(ErrorResponse::REMOTE_SERVER_DIDNT_RESPOND("ekursy dashboard".into())) };
@@ -139,6 +140,7 @@ async fn get_course_deadlines(moodle_session_cookie: String, course_id: u64, fro
 
     let sesskey = get_sesskey(text)?;
 
+    let ajax_url = format!("{}/lib/ajax/service.php", crate::util::ekursy_base_url());
     let mut out: Vec<Deadline> = Vec::new();
     let mut after_event_id: u64 = 0;
 
@@ -163,8 +165,8 @@ async fn get_course_deadlines(moodle_session_cookie: String, course_id: u64, fro
         ]);
 
         let Ok(resp_data) = client
-            .post("https://ekursy.put.poznan.pl/lib/ajax/service.php")
-            .header(HOST, HeaderValue::from_static("ekursy.put.poznan.pl"))
+            .post(&ajax_url)
+            .header(HOST, HeaderValue::from_str(crate::util::ekursy_host()).unwrap())
             .json(&request_data)
             .query(&[
                 ("info", "core_calendar_get_action_events_by_course"),
