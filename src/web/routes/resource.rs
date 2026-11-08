@@ -139,12 +139,7 @@ async fn resource_download_response(resp: reqwest::Response) -> Result<Response,
 async fn extract_resource(req_url: &str, resp: reqwest::Response, client: &Client) -> Result<Response, ErrorResponse> {
     // external file redirect
     if req_url != resp.url().to_string() {
-        let headers = resp.headers().clone();
-
-        let Ok(bytes) = resp.bytes().await
-            else { return Err(ErrorResponse::UNABLE_TO_PARSE_RESPONSE_TEXT("Bytes not recieved from remote WTF?".into())) };
-
-        return Ok((headers.clone(), bytes).into_response())
+        return resource_download_response(resp).await
     }
 
     let Ok(text) = resp.text().await
@@ -432,6 +427,50 @@ mod tests {
         assert_eq!(
             response.headers().get(CONTENT_DISPOSITION).unwrap(),
             r#"inline; filename="notes.pdf""#
+        );
+    }
+
+    #[tokio::test]
+    async fn direct_redirect_normalizes_malformed_content_type() {
+        let server = MockServer::start().await;
+        let download_url = format!("{}/download", server.uri());
+
+        Mock::given(method("GET"))
+            .and(path("/page"))
+            .respond_with(
+                ResponseTemplate::new(302).insert_header("Location", download_url.as_str()),
+            )
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/download"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("Content-Type", "application")
+                    .insert_header(
+                        "Content-Disposition",
+                        r#"inline; filename="Lab4.ipynb""#,
+                    )
+                    .set_body_bytes(br#"{"cells": []}"#.to_vec()),
+            )
+            .mount(&server)
+            .await;
+
+        let client = Client::new();
+        let page_url = format!("{}/page", server.uri());
+        let page_response = client.get(&page_url).send().await.unwrap();
+        let response = extract_resource(&page_url, page_response, &client)
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(CONTENT_TYPE).unwrap(),
+            "application/x-ipynb+json"
+        );
+        assert_eq!(
+            response.headers().get(CONTENT_DISPOSITION).unwrap(),
+            r#"inline; filename="Lab4.ipynb""#
         );
     }
 }
